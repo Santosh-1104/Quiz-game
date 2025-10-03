@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ultimate Quiz with Timer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #1e3a8a, #9333ea, #f43f5e);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .quiz-card {
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .option-button {
+      transition: all 0.2s ease-in-out;
+    }
+    .option-button:hover:not(.correct):not(.incorrect) {
+      transform: scale(1.02);
+      background-color: #3e4a5c;
+    }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'primary': '#4f46e5',
+            'success': '#10b981',
+            'danger': '#ef4444',
+            'card-bg': '#161b22',
+            'text-light': '#c9d1d9',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+  <!-- Quiz Container -->
+  <div id="quiz-container" class="quiz-card w-full max-w-lg bg-card-bg p-8 md:p-10 rounded-xl border border-gray-700">
+      
+    <h1 class="text-3xl font-extrabold text-white mb-6 text-center">🔥 The Ultimate Knowledge Quiz 🔥</h1>
+
+    <!-- Score & Timer -->
+    <div class="flex justify-between items-center mb-4">
+      <p id="score-display" class="text-lg font-bold text-success">Score: 0</p>
+      <p id="timer-display" class="text-lg font-bold text-danger">Time: 20s</p>
+    </div>
+
+    <div id="quiz-box">
+      <!-- Question area -->
+      <div class="mb-6">
+        <p id="question-number" class="text-sm font-medium text-primary mb-2"></p>
+        <p id="question-text" class="text-xl font-semibold text-text-light"></p>
+      </div>
+
+      <!-- Options area -->
+      <div id="options-container" class="space-y-3"></div>
+
+      <!-- Navigation Button -->
+      <div class="mt-8">
+        <button id="next-button" class="hidden w-full px-6 py-3 bg-primary hover:bg-indigo-600 text-white font-semibold rounded-lg shadow-lg transition duration-150 ease-in-out transform hover:scale-105">
+          Next Question
+        </button>
+      </div>
+
+      <!-- Feedback area -->
+      <div class="mt-8 pt-4 border-t border-gray-700 flex justify-start items-center">
+        <p id="feedback" class="text-base font-medium text-white"></p>
+      </div>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="result-screen" class="hidden text-center p-6">
+      <h2 class="text-3xl font-bold text-white mb-4">Quiz Complete!</h2>
+      <p class="text-xl text-text-light mb-6">You scored <span id="final-score" class="text-success font-extrabold"></span> out of <span id="total-questions"></span>.</p>
+      <button id="restart-button" class="px-6 py-3 bg-primary hover:bg-indigo-600 text-white font-semibold rounded-lg shadow-lg transition duration-150 ease-in-out transform hover:scale-105">
+        Restart Quiz
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    // --- Quiz Data ---
+    const quizData = [
+      { question: "What is the capital city of Australia?", options: ["Sydney", "Melbourne", "Canberra", "Brisbane"], answer: "Canberra" },
+      { question: "Which planet is known as the 'Red Planet'?", options: ["Jupiter", "Mars", "Saturn", "Venus"], answer: "Mars" },
+      { question: "What is the largest ocean on Earth?", options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"], answer: "Pacific Ocean" },
+      { question: "What year did the Titanic sink?", options: ["1912", "1905", "1918", "1923"], answer: "1912" },
+      { question: "What is the chemical symbol for gold?", options: ["Ag", "Au", "Fe", "Pb"], answer: "Au" }
+    ];
+
+    // --- State Variables ---
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let hasAnswered = false;
+    let timer;
+    let timeLeft = 20;
+
+    // --- DOM Elements ---
+    const quizBox = document.getElementById('quiz-box');
+    const resultScreen = document.getElementById('result-screen');
+    const questionNumberEl = document.getElementById('question-number');
+    const questionTextEl = document.getElementById('question-text');
+    const optionsContainer = document.getElementById('options-container');
+    const feedbackEl = document.getElementById('feedback');
+    const finalScoreEl = document.getElementById('final-score');
+    const totalQuestionsEl = document.getElementById('total-questions');
+    const restartButton = document.getElementById('restart-button');
+    const nextButton = document.getElementById('next-button');
+    const scoreDisplay = document.getElementById('score-display');
+    const timerDisplay = document.getElementById('timer-display');
+
+    function loadQuestion() {
+      hasAnswered = false;
+      feedbackEl.textContent = '';
+      nextButton.classList.add('hidden'); 
+      
+      if (currentQuestionIndex >= quizData.length) {
+        showResult();
+        return;
+      }
+
+      const currentQuestion = quizData[currentQuestionIndex];
+      questionNumberEl.textContent = `Question ${currentQuestionIndex + 1} of ${quizData.length}`;
+      questionTextEl.textContent = currentQuestion.question;
+      optionsContainer.innerHTML = '';
+
+      currentQuestion.options.forEach((option) => {
+        const button = document.createElement('button');
+        button.textContent = option;
+        button.className = 'option-button w-full text-left p-4 bg-card-bg text-text-light rounded-lg font-medium border border-gray-700 hover:bg-gray-700 focus:outline-none';
+        button.addEventListener('click', () => checkAnswer(option, button));
+        optionsContainer.appendChild(button);
+      });
+
+      startTimer();
+    }
+
+    function startTimer() {
+      clearInterval(timer);
+      timeLeft = 20;
+      timerDisplay.textContent = `Time: ${timeLeft}s`;
+      timer = setInterval(() => {
+        timeLeft--;
+        timerDisplay.textContent = `Time: ${timeLeft}s`;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          feedbackEl.textContent = "⏰ Time's up!";
+          nextButton.classList.remove('hidden');
+        }
+      }, 1000);
+    }
+
+    function checkAnswer(selectedOption, selectedButton) {
+      if (hasAnswered) return;
+      hasAnswered = true;
+      clearInterval(timer);
+
+      const correctAnswer = quizData[currentQuestionIndex].answer;
+      const isCorrect = selectedOption === correctAnswer;
+
+      if (isCorrect) {
+        score++;
+        selectedButton.classList.add('bg-success', 'border-success', 'text-white');
+        feedbackEl.textContent = '✅ Correct!';
+      } else {
+        selectedButton.classList.add('bg-danger', 'border-danger', 'text-white');
+        feedbackEl.textContent = `❌ Incorrect! The answer was: ${correctAnswer}`;
+      }
+
+      scoreDisplay.textContent = `Score: ${score}`;
+
+      Array.from(optionsContainer.children).forEach(button => {
+        button.disabled = true;
+        if (button.textContent === correctAnswer && !isCorrect) {
+          button.classList.add('bg-success/50', 'border-success', 'text-white');
+        }
+      });
+
+      nextButton.classList.remove('hidden');
+      nextButton.textContent = (currentQuestionIndex === quizData.length - 1) ? 'Show Results' : 'Next Question';
+    }
+
+    function handleNextQuestion() {
+      currentQuestionIndex++;
+      loadQuestion(); 
+    }
+
+    function showResult() {
+      quizBox.classList.add('hidden');
+      resultScreen.classList.remove('hidden');
+      finalScoreEl.textContent = score;
+      totalQuestionsEl.textContent = quizData.length;
+    }
+
+    function restartQuiz() {
+      currentQuestionIndex = 0;
+      score = 0;
+      scoreDisplay.textContent = "Score: 0";
+      quizBox.classList.remove('hidden');
+      resultScreen.classList.add('hidden');
+      loadQuestion();
+    }
+
+    restartButton.addEventListener('click', restartQuiz);
+    nextButton.addEventListener('click', handleNextQuestion);
+
+    window.onload = loadQuestion;
+  </script>
+</body>
+</html>
